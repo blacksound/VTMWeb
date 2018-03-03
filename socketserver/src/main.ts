@@ -6,7 +6,7 @@ import * as udp from "dgram";
 let osc = require('osc-min');
 
 //create http server for serving socket.io-client
-let httpPort = 8080;
+let httpPort = 7000;
 let app = Server.bootstrap().app;
 app.set("port", httpPort);
 let httpServer = http.createServer(app);
@@ -17,10 +17,12 @@ let io = socket_io.listen(httpServer);
 let openSockets: any[] = []; //array for holding open sockets
 io.on('connection', function(socket: any) {
     openSockets.push(socket);
-    console.log("Socket connect", socket);
+    let name = socket.handshake.query.name || 'anonymous';
+    console.log(name, "connected");
+    socket.emit('init');
     //remove socket on disconnect
     socket.on('disconnect', () => {
-        console.log("Socket disconnect", socket);
+        console.log("Socket disconnect");
         openSockets.forEach(function (socket2, i) {
             if (socket === socket2) {
                 openSockets.splice(i, 1);
@@ -54,7 +56,6 @@ let oscSocket = udp.createSocket("udp4", function(msg, rinfo) {
                 unbundle(el); //recursive unbundle
             }
         } else {
-            console.log(element);
             messages.push(element);
         }
     }
@@ -63,11 +64,14 @@ let oscSocket = udp.createSocket("udp4", function(msg, rinfo) {
     unbundle(parsed);
 
     for (let message of messages) {
+        let address = message["address"].replace(/^\//g, ''); //remove leading slash
+        //remove unnecessary data:
+        delete message['oscType'];
+        delete message["address"];
+        console.log(address, message["args"]);
+
         for (let socket of openSockets) {
-            let address = message["address"];
-            delete message['messageType'];
-            delete message["address"];
-            socket.emit(message["address"], message);
+            socket.emit(address, message);
         }
     }
 });
