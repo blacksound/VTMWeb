@@ -1,7 +1,13 @@
 <div>
-  <h2>{{ name | uppercase }}</h2>
-  <div><span>Val: </span>{{value}}</div>
-  <div><span>Minval: </span>{{minval}}</div>
-  <div><span>Maxval: </span>{{maxval}}</div>
-  <mat-slider [(ngModel)]="value"></mat-slider>
+  <h2>{{ name() | uppercase }}</h2>
+  <div><span>Val: </span>{{ slider.data.value }}</div>
+  <div><span>Minval: </span>{{ slider.data.minval }}</div>
+  <div><span>Maxval: </span>{{ slider.data.maxval }}</div>
+  <mat-slider 
+    [value]="value()"
+    (input)="onMove($event)"
+    [min]="slider.data.minval"
+    [max]="slider.data.maxval"
+    [step]="slider.data.step"
+  ></mat-slider>
 </div>

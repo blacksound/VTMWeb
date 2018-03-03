@@ -12,6 +12,8 @@ app.set("port", httpPort);
 let httpServer = http.createServer(app);
 httpServer.listen(httpPort);
 
+let oscReturnSocket = udp.createSocket("udp4");
+
 //setup socket.io
 let io = socket_io.listen(httpServer);
 let openSockets: any[] = []; //array for holding open sockets
@@ -28,6 +30,23 @@ io.on('connection', function(socket: any) {
                 openSockets.splice(i, 1);
             }
         });
+    });
+    socket.on('callback', (data) => {
+        //remove leading slash if it exist:
+        let address = data.path.replace(/^\//g, '');
+        address = "/" + address;
+        delete data.path;
+
+        let buf = osc.toBuffer({
+            address: address,
+            args: [
+              {
+                type: "string",
+                value: JSON.stringify(data)
+              }
+            ]
+        });
+        oscSocket.send(buf, 0, buf.length, 57120, "localhost");
     });
 });
 

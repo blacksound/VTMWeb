@@ -6,46 +6,79 @@ import { Controller }               from './controller-classes/controller';
 import { Slider } from './controller-classes/slider'
 import { of } from 'rxjs/observable/of';
 
-let types = {
+
+const types = {
   slider: Slider
 };
+
 
 @Injectable()
 export class ControllerService {
 
   controllers: Controller[] = [];
-  observable: Observable<Controller[]>;
   subject: Subject<Controller>;
 
   constructor(private socketService: SocketService) {
-    
-    this.controllers = [
-      new Slider("amp"),
-      new Slider("pan")
-    ];
-
     this.subject = new Subject();
     this.fetchControllers();
   }
 
   fetchControllers(): void {
-    this.socketService.getMethod("makeController").subscribe(data => {
-      let args = data['args'];
-      let name = args[0]['value'];
-      let type = types[args[1]['value']]; //only 'slider' type at the moment
-      let value = args[2]['value'];
-      let controller: Controller = new type(name);
-      controller.value = value;
-      this.controllers.push(controller);
-      this.subject.next(controller);
+    /*
+    connects to the socket service
+    */
+
+    //make some initial controllers
+    let pan = {
+      name: 'pan',
+      value: 0,
+      minval: -1,
+      maxval: 1,
+      type: 'slider'
+    };
+
+    let amp = {
+      name: 'amp',
+      value: 1,
+      minval: 0,
+      maxval: 1,
+      type: 'slider'
+    };
+
+    this.controllers = [
+      new Slider(pan, this.socketService.makeCallback('pan')),
+      new Slider(amp, this.socketService.makeCallback('amp'))
+    ];
+
+    //returns a Subject to subscribe to
+    this.socketService.getMethod("makeController").subscribe(msg => {
+      let data = JSON.parse(msg['args'][0]['value']); //first OSC arg is a JSON string
+      let name = data['name'];
+      //must have a name:
+      if (name !== undefined) {
+        let type = data['type']; //only 'slider' type at the moment
+        let component = types[type];
+        //must have a component
+        if (component !== undefined) {
+          let path: string = data['path'];
+          if (path === undefined) {
+            path = name;
+          }
+          let controller: Controller = new component(data, this.socketService.makeCallback(path));
+          this.controllers.push(controller);
+          this.subject.next(controller); //push the new controller to all subscribers
+        }
+      }
     });
   }
 
   getControllers(): Observable<Controller[]> {
+    //push all controllers typically to components on init
     return of(this.controllers);
   }
 
   updateControllers(): Observable<Controller> {
+    //pushes new controllers one at a time as they are created
     return this.subject;
   }
 }

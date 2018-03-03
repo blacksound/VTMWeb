@@ -31,4 +31,14 @@ export class SocketService {
   getMethod(type: string): any {
     return this.subjects[type];
   }
+
+  //make a callback for controllers to send their values to the socketserver. Path is OSC-address
+  makeCallback(path: string): Function {
+    return (data) => {
+      this.socket.emit('callback', {
+        path: path,
+        data: data
+      });
+    }
+  }
 }
