@@ -4,16 +4,12 @@ import { Injectable } from '@angular/core';
 import { Subject }           from 'rxjs/Subject';
 import { of } from 'rxjs/observable/of';
 
-const observable_selectors = [
-  "selector1",
-  "selector2"
-];
 
 @Injectable()
 export class SocketService {
   private url = 'http://localhost:7000';  
-  socket: any;
-  subjects = {};
+  private socket: any;
+  private subjects = {};
 
   constructor() {
     
@@ -22,24 +18,24 @@ export class SocketService {
     this.socket.on('init', () => {
       console.log("Socket connected");
     });
+  }
 
-    /* 
-    Create a Subject for each observable selector, so multiple components can subscribe.
-    For component or module specific selectors, the component or module can subscribe directly to the socket with SocketService.socket.on(...)
-    */
-    
-    observable_selectors.forEach((selector) => {
+  connectTo(selector: string): Subject<any> {
+    //get or create Subject:
+    if (this.subjects[selector] === undefined) {
       let subject = new Subject();
       this.subjects[selector] = subject;
       this.socket.on(selector, (data: any) => {
         subject.next(data);
       });
-    });
-  }
+    }
+    return this.subjects[selector];
+  } 
 
-  getMethod(type: string): any {
-    return this.subjects[type];
-  }
+  //expose method socket.on:
+  on(selector: string, callback: Function): void {
+    this.socket.on(selector, callback);
+  } 
 
   //make a callback for controllers to send their values to the socketserver. Path is OSC-address
   makeCallback(path: string): Function {

@@ -44,7 +44,7 @@ export class ControllerService {
   }
 
   fetchControllers(): void {
-    this.socketService.socket.on('makeController', (msg: any) => {
+    this.socketService.on('makeController', (msg: any) => {
       let data = JSON.parse(msg['args'][0]['value']); //first OSC arg is a JSON string
       this.makeController(data);
     });
