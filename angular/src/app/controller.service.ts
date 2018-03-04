@@ -21,14 +21,8 @@ export class ControllerService {
   constructor(private socketService: SocketService) {
     this.subject = new Subject();
     this.fetchControllers();
-  }
 
-  fetchControllers(): void {
-    /*
-    connects to the socket service
-    */
-
-    //make some initial controllers
+    //make some initial controllers for testing
     let pan = {
       name: 'pan',
       value: 0,
@@ -45,31 +39,34 @@ export class ControllerService {
       type: 'slider'
     };
 
-    this.controllers = [
-      new Slider(pan, this.socketService.makeCallback('pan')),
-      new Slider(amp, this.socketService.makeCallback('amp'))
-    ];
+    this.controllers.push(new Slider(pan, this.socketService.makeCallback('pan')));
+    this.controllers.push(new Slider(amp, this.socketService.makeCallback('amp')));
+  }
 
-    //returns a Subject to subscribe to
-    this.socketService.getMethod("makeController").subscribe(msg => {
+  fetchControllers(): void {
+    this.socketService.socket.on('makeController', (msg: any) => {
       let data = JSON.parse(msg['args'][0]['value']); //first OSC arg is a JSON string
-      let name = data['name'];
-      //must have a name:
-      if (name !== undefined) {
-        let type = data['type']; //only 'slider' type at the moment
-        let component = types[type];
-        //must have a component
-        if (component !== undefined) {
-          let path: string = data['path'];
-          if (path === undefined) {
-            path = name;
-          }
-          let controller: Controller = new component(data, this.socketService.makeCallback(path));
-          this.controllers.push(controller);
-          this.subject.next(controller); //push the new controller to all subscribers
-        }
-      }
+      this.makeController(data);
     });
+  }
+
+  makeController(data: {}) {
+    let name = data['name'];
+    //must have a name:
+    if (name !== undefined) {
+      let type = data['type']; //only 'slider' type at the moment
+      let component = types[type];
+      //must have a component
+      if (component !== undefined) {
+        let path: string = data['path'];
+        if (path === undefined) {
+          path = name;
+        }
+        let controller: Controller = new component(data, this.socketService.makeCallback(path));
+        this.controllers.push(controller);
+        this.subject.next(controller); //push the new controller to all subscribers
+      }
+    }
   }
 
   getControllers(): Observable<Controller[]> {
