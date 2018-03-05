@@ -3,6 +3,7 @@ import { Server } from "./server";
 import * as http from "http";
 import * as socket_io from "socket.io";
 import * as udp from "dgram";
+import { WSAEPROCLIM } from "constants";
 let osc = require('osc-min');
 
 //create http server for serving socket.io-client
@@ -16,21 +17,29 @@ let oscReturnSocket = udp.createSocket("udp4");
 
 //setup socket.io
 let io = socket_io.listen(httpServer);
-let openSockets: any[] = []; //array for holding open sockets
-io.on('connection', function(socket: any) {
-    openSockets.push(socket);
-    let name = socket.handshake.query.name || 'anonymous';
-    console.log(name, "connected");
+let openSockets: any[] = []; //anonymous sockets here
+
+io.on('connection', (socket: any) => {
+    let name: string = socket.handshake.query.name || 'anonymous';
+    name = name.toLowerCase();
+    //allow multiple sockets with same name:
+    openSockets.push({
+        name: name,
+        socket: socket
+    });
+    console.log(name, "connected"); 
     socket.emit('init');
+
     //remove socket on disconnect
     socket.on('disconnect', () => {
-        console.log("Socket disconnect");
-        openSockets.forEach(function (socket2, i) {
-            if (socket === socket2) {
+        openSockets.forEach(function (obj, i) {
+            if (socket === obj.socket) {
                 openSockets.splice(i, 1);
+                console.log(obj.name, "disconnected");
             }
         });
     });
+
     socket.on('callback', (data) => {
         //remove leading slash if it exist:
         let address = data.path.replace(/^\//g, '');
@@ -83,14 +92,34 @@ let oscSocket = udp.createSocket("udp4", function(msg, rinfo) {
     unbundle(parsed);
 
     for (let message of messages) {
-        let address = message["address"].replace(/^\//g, ''); //remove leading slash
+        let full_address = message["address"].replace(/^\//g, ''); //remove leading slash
+        let address_array = full_address.split("/");
         //remove unnecessary data:
         delete message['oscType'];
         delete message["address"];
-        console.log(address, message["args"]);
+        console.log(full_address, message["args"]); 
 
-        for (let socket of openSockets) {
-            socket.emit(address, message);
+        let method = address_array.splice(0, 1)[0]; //pop first
+        switch(method) {
+            //forward to selected browser(s), address syntax: /browser/who/method
+            case "forward": {
+                if (address_array.length == 2) {
+                    let who = address_array.splice(0, 1)[0]; //pop first
+                    for (let connected of openSockets) {
+                        if ((connected.name == who) || (who == 'all')) {
+                            connected.socket.emit(address_array[0], message);
+                        }
+                    }
+                }
+                break;
+            }
+            case "vtm": {
+                //VTM functionality
+                break;
+            }
+            default: {
+                console.log("OSC method not found")
+            }
         }
     }
 });

@@ -4,7 +4,7 @@
 ```
 n = NetAddr("localhost", 8000);
 
-n.sendMsg("/makeController", JSON.stringify(
+n.sendMsg("/forward/all/makeController", JSON.stringify(
 	(
 		name: "midinote",
 		type: "slider",
