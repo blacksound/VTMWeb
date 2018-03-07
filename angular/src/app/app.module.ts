@@ -9,7 +9,7 @@ import { ControllerDirective } from './controller.directive';
 import { ControllersComponent } from './controllers/controllers.component';
 import { SliderComponent } from './slider/slider.component';
 import { MatSliderModule } from '@angular/material';
-import { ControllerService } from './controller.service'
+import { AssignableAttributesModule } from './assignable-attributes/assignable-attributes.module'
 
 @NgModule({
   declarations: [
@@ -22,11 +22,11 @@ import { ControllerService } from './controller.service'
     BrowserModule,
     FormsModule,
     MatSliderModule,
-    NoopAnimationsModule
+    NoopAnimationsModule,
+    AssignableAttributesModule
   ],
   providers: [
-    SocketService,
-    ControllerService
+    SocketService
   ],
   bootstrap: [AppComponent],
   entryComponents: [

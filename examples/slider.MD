@@ -4,16 +4,22 @@
 ```
 n = NetAddr("localhost", 8000);
 
-n.sendMsg("/forward/all/makeController", JSON.stringify(
+n.sendMsg("/forward/all/attributes/add", JSON.stringify(
 	(
 		name: "midinote",
-		type: "slider",
+		type: "range",
 		minval: 40,
 		maxval: 64,
 		value: 52
 	)
 ));
 ```
+
+Remove all attributes matching regex /test/:
+```
+n.sendMsg("/forward/all/attributes/remove", "test")
+```
+
 
 Make a synth and set it on OSC callback:
 ```

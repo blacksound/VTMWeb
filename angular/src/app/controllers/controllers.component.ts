@@ -1,9 +1,12 @@
 import { Component, Input, AfterViewInit, ViewChild, ComponentFactoryResolver, OnDestroy, OnInit } from '@angular/core';
 
 import { ControllerDirective } from '../controller.directive';
-import { Controller }      from '../controller-classes/controller';
-import { ControllerService }         from '../controller.service';
-import { ControllerComponent } from '../controller-classes/controller.component';
+import { AttributeHandlingService }         from '../assignable-attributes/attribute-handling.service';
+import { Attribute }         from '../assignable-attributes/attribute-classes/attribute';
+import { Range }         from '../assignable-attributes/attribute-classes/range';
+import { Bool }         from '../assignable-attributes/attribute-classes/bool';
+import { ControllerComponent } from '../controller.component';
+import { SliderComponent } from '../slider/slider.component'
 
 @Component({
   selector: 'app-controllers',
@@ -13,36 +16,49 @@ import { ControllerComponent } from '../controller-classes/controller.component'
 export class ControllersComponent implements OnInit {
   
   @ViewChild(ControllerDirective) controllerHost: ControllerDirective;
-  subscription: any;
-  interval: any;
+  private viewContainerRef;
+  private attributeSubscriber;
 
-  constructor(private controllerService: ControllerService, private componentFactoryResolver: ComponentFactoryResolver) { }
+  constructor(private attributeHandlingService: AttributeHandlingService, private componentFactoryResolver: ComponentFactoryResolver) { }
 
   ngOnInit() {
-    let viewContainerRef = this.controllerHost.viewContainerRef;
-    viewContainerRef.clear();
-    this.getControllers();
+    this.viewContainerRef = this.controllerHost.viewContainerRef;
+    this.viewContainerRef.clear(); //is this necessary on init?
+    this.getAttributes();
+    this.updateTrigger();
   }
 
-  loadComponent(controller: Controller) {
-    let viewContainerRef = this.controllerHost.viewContainerRef;
-    //viewContainerRef.clear();
+  loadComponent(attribute: Attribute) {
+    let component;
+    switch (attribute.constructor.name) {
+      case Range.name: {
+        component = SliderComponent;
+        break;
+      }
+      case Bool.name: {
+        component = SliderComponent;
+        break;
+      }
+    }
 
-    let componentFactory = this.componentFactoryResolver.resolveComponentFactory(controller.component);
-    let componentRef = viewContainerRef.createComponent(componentFactory);
-    //(<ControllerComponent>componentRef.instance).controller = controller;
-    (<ControllerComponent>componentRef.instance).update(controller);
+    if (component) {
+      let componentFactory = this.componentFactoryResolver.resolveComponentFactory(component);
+      let componentRef = this.viewContainerRef.createComponent(componentFactory);
+      (<ControllerComponent>componentRef.instance).update(attribute);
+    }
   }
 
-  getControllers(): void {
-    this.controllerService.getControllers().subscribe(controllers => {
-      controllers.forEach(controller => {
-        this.loadComponent(controller);
-      });
+  updateTrigger(): void {
+    this.attributeHandlingService.getUpdateTrigger().subscribe(() => {
+      this.attributeSubscriber.unsubscribe;
+      this.viewContainerRef.clear();
+      this.getAttributes();
     });
-    this.controllerService.updateControllers().subscribe(controller => {
-      this.loadComponent(controller);
-    });
   }
 
+  getAttributes(): void {
+    this.attributeSubscriber = this.attributeHandlingService.getAttributes('').subscribe(attribute => {
+      this.loadComponent(attribute);
+    });
+  }
 }

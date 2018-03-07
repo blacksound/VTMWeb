@@ -1,28 +1,29 @@
 import { Component } from '@angular/core';
-import { Controller } from '../controller-classes/controller'
-import { Slider } from '../controller-classes/slider'
+import { Range } from '../assignable-attributes/attribute-classes/range'
 import { MatSliderChange } from '@angular/material/slider'
+import { ControllerComponent } from '../controller.component'
+
 
 @Component({
   selector: 'app-slider',
   templateUrl: './slider.component.html',
   styleUrls: ['./slider.component.css']
 })
-export class SliderComponent {
+export class SliderComponent extends ControllerComponent {
 
-  slider: Slider
+  range: Range;
 
   onMove (change: MatSliderChange) {
-    this.slider.data.value = change.value;
-    this.slider.callback(change.value);
+    this.range.value = change.value;
+    this.range.callback(change.value);
   }
   value() {
-    return this.slider.data.value;
+    return this.range.value;
   }
-  update(slider: Slider) {
-    this.slider = slider;
+  update(range: Range) {
+    this.range = range;
   }
   name() {
-    return this.slider.data.name;
+    return this.range.name;
   }
 }

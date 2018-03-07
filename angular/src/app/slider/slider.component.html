@@ -1,13 +1,13 @@
 <div>
   <h2>{{ name() | uppercase }}</h2>
-  <div><span>Val: </span>{{ slider.data.value }}</div>
-  <div><span>Minval: </span>{{ slider.data.minval }}</div>
-  <div><span>Maxval: </span>{{ slider.data.maxval }}</div>
+  <div><span>Val: </span>{{ range.value }}</div>
+  <div><span>Minval: </span>{{ range.minval }}</div>
+  <div><span>Maxval: </span>{{ range.maxval }}</div>
   <mat-slider 
     [value]="value()"
     (input)="onMove($event)"
-    [min]="slider.data.minval"
-    [max]="slider.data.maxval"
-    [step]="slider.data.step"
+    [min]="range.minval"
+    [max]="range.maxval"
+    [step]="range.step"
   ></mat-slider>
 </div>
