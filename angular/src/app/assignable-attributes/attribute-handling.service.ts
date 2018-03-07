@@ -1,9 +1,8 @@
-import { Injectable, OnInit }           from '@angular/core';
+import { Injectable }           from '@angular/core';
 import { Observable} from 'rxjs/Rx'
 import { Subject }           from 'rxjs/Subject';
 import { SocketService } from '../socket.service'
 import { Attribute }               from './attribute-classes/attribute'
-import { of } from 'rxjs/observable/of';
 import { Range } from './attribute-classes/range'
 import { Bool } from './attribute-classes/bool'
 
@@ -43,17 +42,20 @@ export class AttributeHandlingService {
   connectToSocket(): void {
     
     this.socketService.on('attributes/add', (msg: any) => {
-      let data = JSON.parse(msg['args'][0]['value']); //first OSC arg is a JSON string
-      let name = data['name'];
-    //must have a name:
-      if (name !== undefined) {
-        this.addAttribute(name, data);
-      }
+      let args = msg['args'];
+      args.forEach(arg => {
+        let data = JSON.parse(arg['value']); //OSC arg is a JSON string
+        let name = data['name'];
+        //must have a name:
+        if (name !== undefined) {
+          this.addAttribute(name, data);
+        }
+      });
     });
 
     this.socketService.on('attributes/remove', (msg: any) => {
       let regex = msg['args'][0]['value']; //first OSC argument (should be string)
-      this.removeAttributes(regex);
+      this.removeAttributesMatching(regex);
     });
   }
 
@@ -68,7 +70,7 @@ export class AttributeHandlingService {
     }
   }
 
-  removeAttributes(regex: any = /a^/) { 
+  removeAttributesMatching(regex: any = /a^/) { 
     regex = new RegExp(regex); //match nothing as default:
     this.attributes = this.attributes.filter(attribute => {
       return attribute.name.match(regex) === null;
