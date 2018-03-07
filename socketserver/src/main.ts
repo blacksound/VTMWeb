@@ -3,7 +3,7 @@ import { Server } from "./server";
 import * as http from "http";
 import * as socket_io from "socket.io";
 import * as udp from "dgram";
-let osc = require('osc-min');
+import * as osc from 'osc-min';
 
 //create http server for serving socket.io-client
 let httpPort = 7000;

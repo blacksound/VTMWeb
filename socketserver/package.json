@@ -2,13 +2,13 @@
   "name": "socketserver",
   "version": "1.0.0",
   "description": "Socketserver for VTMWeb",
-  "main": "main.js",
+  "main": "build/main.js",
   "scripts": {
     "nodemon": "nodemon",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "concurrently \"npm run build:watch\" \"nodemon src/main.js\" ",
-    "build": "tsc -p src/",
-    "build:watch": "tsc -p src/ -w"
+    "start": "concurrently \"npm run build:watch\" \"nodemon build/main.js\" ",
+    "build": "tsc -p src/ --outDir build/",
+    "build:watch": "tsc -p src/  --outDir build/ -w"
   },
   "author": "",
   "license": "ISC",
