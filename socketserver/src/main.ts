@@ -3,7 +3,6 @@ import { Server } from "./server";
 import * as http from "http";
 import * as socket_io from "socket.io";
 import * as udp from "dgram";
-import { WSAEPROCLIM } from "constants";
 let osc = require('osc-min');
 
 //create http server for serving socket.io-client
@@ -103,11 +102,11 @@ let oscSocket = udp.createSocket("udp4", function(msg, rinfo) {
         switch(method) {
             //forward to selected browser(s), address syntax: /browser/who/method
             case "forward": {
-                if (address_array.length == 2) {
+                if (address_array.length > 1) {
                     let who = address_array.splice(0, 1)[0]; //pop first
                     for (let connected of openSockets) {
                         if ((connected.name == who) || (who == 'all')) {
-                            connected.socket.emit(address_array[0], message);
+                            connected.socket.emit(address_array.join("/"), message);
                         }
                     }
                 }

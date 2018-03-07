@@ -18,7 +18,7 @@ export class Server {
 
   public config() {
     //add static paths
-    this.app.use(express.static(path.join(__dirname, "public")));
-    this.app.use('/node_modules', express.static(path.join(__dirname, "../node_modules")));
+    //this.app.use(express.static(path.join(__dirname, "public")));
+    //this.app.use('/node_modules', express.static(path.join(__dirname, "../node_modules")));
   }
 }
