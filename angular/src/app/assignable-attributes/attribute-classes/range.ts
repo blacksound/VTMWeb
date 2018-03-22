@@ -5,7 +5,6 @@ export class Range extends Attribute {
   minval: number;
   maxval: number;
   step: number;
-  value: number;
 
   constructor (name, callback: Function) {
     super(name, callback);

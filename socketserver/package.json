@@ -19,12 +19,14 @@
     "argparse": "^1.0.10",
     "express": "^4.16.2",
     "osc-min": "^1.1.1",
-    "socket.io": "^2.0.4"
+    "socket.io": "^2.0.4",
+    "socketio-wildcard": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^9.4.6",
     "concurrently": "^3.5.1",
     "nodemon": "^1.17.0",
+    "typedoc": "^0.11.1",
     "typescript": "^2.7.2"
   }
 }

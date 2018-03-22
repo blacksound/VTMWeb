@@ -14,6 +14,7 @@ const types = {
 @Injectable()
 export class AttributeHandlingService {
 
+  private socket;
   private attributes: Attribute[] = [];
   private observable: Subject<Attribute>;
   private updateTrigger: Subject<void>; //trigger when update is needed, ie. on removal of attributes
@@ -41,10 +42,13 @@ export class AttributeHandlingService {
 
   connectToSocket(): void {
     
-    this.socketService.on('attributes/add', (msg: any) => {
-      let args = msg['args'];
-      args.forEach(arg => {
-        let data = JSON.parse(arg['value']); //OSC arg is a JSON string
+    this.socket = this.socketService.getNamespace('attributes');
+    this.socket.on('connect', () => {
+      console.log('Attributes connected');
+    });
+    this.socket.on('add', (...specs) => {
+      specs.forEach(spec => {
+        let data = JSON.parse(spec); //OSC arg is a JSON string
         let name = data['name'];
         //must have a name:
         if (name !== undefined) {
@@ -53,28 +57,54 @@ export class AttributeHandlingService {
       });
     });
 
-    this.socketService.on('attributes/remove', (msg: any) => {
-      let regex = msg['args'][0]['value']; //first OSC argument (should be string)
+    this.socket.on('remove', (name: string) => {
+      this.removeAttribute(name);
+    });
+    
+    this.socket.on('removeMatching', (regex) => {
       this.removeAttributesMatching(regex);
+    });
+
+    this.socket.on('set', (name: string, val: number) => {
+      this.setAttribute(name, val);
     });
   }
 
-  addAttribute(name, data: {}) {
+  select(name: string) {
+    let filtered = this.attributes.filter(attribute => attribute.name === name);
+    return filtered[0];
+  }
+
+  setAttribute(name: string, val: number) {
+    this.select(name).value = val;
+  }
+
+  addAttribute(name: string, data: {}) {
     let valueType = data['type'];
     let valueClass = types[valueType];
+
+    let callback = (val) => {
+      this.socket.emit('set', name, val);
+    }
+
     if (valueType !== undefined) {
-      let attribute: Attribute = new valueClass(name, this.socketService.makeCallback(name));
+      let attribute: Attribute = new valueClass(name, callback);
       attribute.init(data);
       this.attributes.push(attribute);
       this.observable.next(attribute); //push the new controller to all subscribers
     }
   }
 
-  removeAttributesMatching(regex: any = /a^/) { 
-    regex = new RegExp(regex); //match nothing as default:
+  removeAttributesMatching(regex: any = /a^/) { //match nothing as default:
+    regex = new RegExp(regex);
     this.attributes = this.attributes.filter(attribute => {
       return attribute.name.match(regex) === null;
     });
+    this.updateTrigger.next();
+  }
+
+  removeAttribute(name: string) {
+    this.attributes = this.attributes.filter(attribute => attribute.name !== name);
     this.updateTrigger.next();
   }
 

@@ -1,127 +1,59 @@
 //imports:
-import { Server } from "./server";
 import * as http from "http";
 import * as socket_io from "socket.io";
-import * as udp from "dgram";
-import * as osc from 'osc-min';
+import * as wildcard_middleware from 'socketio-wildcard';
+import scsocket from './SCsocket';
 
-//create http server for serving socket.io-client
+let wildcard = wildcard_middleware();
+
+//setup socket.io:
 let httpPort = 7000;
-let app = Server.bootstrap().app;
-app.set("port", httpPort);
-let httpServer = http.createServer(app);
-httpServer.listen(httpPort);
+let server = http.createServer();
+server.listen(httpPort, '127.0.0.1');
+let io = socket_io.listen(server, {
+    pingInterval: 1000
+});
 
-let oscReturnSocket = udp.createSocket("udp4");
+//connect a local SuperCollider socket-client. This can also be another process on a different device
+scsocket('http://localhost:7000', 'foo').mountOSC(8002, 57120);
 
-//setup socket.io
-let io = socket_io.listen(httpServer);
-let openSockets: any[] = []; //anonymous sockets here
+function get_name(socket): string {
+    let name: string = socket.handshake.query.name || 'anonymous';
+    return name.toLowerCase();
+}
 
 io.on('connection', (socket: any) => {
-    let name: string = socket.handshake.query.name || 'anonymous';
-    name = name.toLowerCase();
-    //allow multiple sockets with same name:
-    openSockets.push({
-        name: name,
-        socket: socket
-    });
-    console.log(name, "connected"); 
-    socket.emit('init');
+    let name = get_name(socket);
+    console.log("Socket server:", name, "connected");
 
-    //remove socket on disconnect
     socket.on('disconnect', () => {
-        openSockets.forEach(function (obj, i) {
-            if (socket === obj.socket) {
-                openSockets.splice(i, 1);
-                console.log(obj.name, "disconnected");
-            }
-        });
-    });
-
-    socket.on('callback', (data) => {
-        //remove leading slash if it exist:
-        let address = data.path.replace(/^\//g, '');
-        address = "/" + address;
-        delete data.path;
-
-        let buf = osc.toBuffer({
-            address: address,
-            args: [
-              {
-                type: "string",
-                value: JSON.stringify(data)
-              }
-            ]
-        });
-        oscSocket.send(buf, 0, buf.length, 57120, "localhost");
+        console.log(name, "disconnected");
     });
 });
 
-// for converting OSC timetag to unix time:
-const TWO_POW_32 = 4294967296;
-const UNIX_EPOCH = 2208988800;
-
-// socket for OSC communication
-let oscPort = 8000;
-let oscSocket = udp.createSocket("udp4", function(msg, rinfo) {
-    let parsed = osc.fromBuffer(msg);
-    let messages: any[] = [];
-
-    let unbundle = (element: any) => {
-        if (element["oscType"] == "bundle") {
-
-            //osc-min timetag is calculated wrong (uses int32, should be uint32), so calculate again:
-            let dataview = new DataView(msg.buffer); //make sure it's big endian
-            let seconds = dataview.getUint32(8, false); //timetag seconds is byte num 8-11
-            let fractional = dataview.getUint32(12, false); //timetag fractional is byte num 12-15
-            let unixepoch = seconds + (fractional / TWO_POW_32) - UNIX_EPOCH;
-            let date = new Date();
-            date.setTime(unixepoch * 1000);
-            for (let el of element["elements"]) {
-                el["date"] = date;
-                unbundle(el); //recursive unbundle
-            }
-        } else {
-            messages.push(element);
-        }
-    }
-
-    console.log("OSC packet received");
-    unbundle(parsed);
-
-    for (let message of messages) {
-        let full_address = message["address"].replace(/^\//g, ''); //remove leading slash
-        let address_array = full_address.split("/");
-        //remove unnecessary data:
-        delete message['oscType'];
-        delete message["address"];
-        console.log(full_address, message["args"]); 
-
-        let method = address_array.splice(0, 1)[0]; //pop first
-        switch(method) {
-            //forward to selected browser(s), address syntax: /browser/who/method
-            case "forward": {
-                if (address_array.length > 1) {
-                    let who = address_array.splice(0, 1)[0]; //pop first
-                    for (let connected of openSockets) {
-                        if ((connected.name == who) || (who == 'all')) {
-                            connected.socket.emit(address_array.join("/"), message);
-                        }
-                    }
-                }
-                break;
-            }
-            case "vtm": {
-                //VTM functionality
-                break;
-            }
-            default: {
-                console.log("OSC method not found")
-            }
-        }
-    }
+io.of('attributes').on('connection', (socket: any) => {
+    console.log("Socket server:", get_name(socket) + " connected to attributes");
+    socket.on('set', (name, val) => {
+        console.log("Socket server: set", name, "to", val);
+        socket.broadcast.emit('set', name, val);
+    });
 });
-  
-oscSocket.bind(oscPort, "127.0.0.1");
-console.log("Listening for OSC packets on port", oscPort);
+
+io.of('backend').use(wildcard).on('connection', (socket: any) => {
+    console.log("Socket server:", get_name(socket) + " connected to backend");
+
+    socket.on('*', (packet) => {
+        let data = packet.data;
+        if (data.length > 2) {
+            let namespace = io.of(data[0]);
+            let room = data[1];
+
+            if (room !== 'all') {
+                namespace = namespace.in(room);
+            }
+
+            console.log("Socket server:", "to", data[1], "of", data[0] + ":", data.slice(2));
+            namespace.emit(data[2], ...data.slice(3));
+        }
+    });
+});

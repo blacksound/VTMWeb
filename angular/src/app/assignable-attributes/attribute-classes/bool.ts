@@ -2,17 +2,16 @@ import { Attribute } from './attribute';
 
 export class Bool extends Attribute {
 
-  value: boolean;
 
   constructor (name, callback: Function) {
     super(name, callback);
   }
 
-  init (data: { value?: boolean; }) {
+  init (data: { value?: number; }) {
     
     //supply defaults:
     let { 
-      value = false
+      value = 0
      } = data;
     
     this.value = value;

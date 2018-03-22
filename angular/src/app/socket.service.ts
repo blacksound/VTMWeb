@@ -4,18 +4,19 @@ import { Injectable } from '@angular/core';
 import { Subject }           from 'rxjs/Subject';
 import { of } from 'rxjs/observable/of';
 
-
 @Injectable()
 export class SocketService {
-  private url = 'http://localhost:7000';  
-  private socket: any;
+  private url = 'http://localhost:7000/';  
+  public socket: any;
   private subjects = {};
 
   constructor() {
-    
-    this.socket = io(this.url, { query: "name=Foo"});
 
-    this.socket.on('init', () => {
+    this.socket = io(this.url, { 
+      query: "name=Foobrowser"
+    });
+
+    this.socket.on('connect', () => {
       console.log("Socket connected");
     });
   }
@@ -30,14 +31,22 @@ export class SocketService {
       });
     }
     return this.subjects[selector];
-  } 
+  }
+
+  getNamespace(namespace: string): any {
+    return io('http://localhost:7000/' + namespace);
+  }
 
   //expose method socket.on:
   on(selector: string, callback: Function): void {
+    new Promise((fulfill, reject) => {
+      this.socket.emit('callback', {
+      })
+    });
     this.socket.on(selector, callback);
   } 
 
-  //make a callback for controllers to send their values to the socketserver. Path is OSC-address
+  //make a callback for attributes to send their values to the socketserver. Path is OSC-address
   makeCallback(path: string): Function {
     return (data) => {
       this.socket.emit('callback', {

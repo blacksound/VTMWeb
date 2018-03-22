@@ -1,36 +1,72 @@
 # Create a slider
 
-## from SuperCollider:
-```
-n = NetAddr("localhost", 8000);
 
-n.sendMsg("/forward/all/attributes/add", JSON.stringify(
-	(
-		name: "midinote",
-		type: "range",
-		minval: 40,
-		maxval: 64,
-		value: 52
-	)
-));
+Start the socketserver:
+
 ```
+cd path/to/socketserver
+npm start
+```
+
+Start angular:
+
+```
+cd path/to/angular
+npm start
+```
+Visit http://localhost:4200 in your browser
+
+## In SuperCollider:
+
+Include the folder socketserver/sc in your list of SuperCollider class folders (Preferences -> Interpreter).
+
+Connect to different namespaces in socket-io:
+```
+~attributes = SocketIO.connect('attributes'); //connect to namespace "attributes"
+~backend = SocketIO.connect('backend'); //connect to namespace "backend"
+```
+Make a spec:
+```
+~spec = (
+	name: "midinote",
+	type: "range",
+	minval: 40,
+	maxval: 64,
+	value: 52
+);
+```
+
+Get a notification on added specs:
+```
+~attributes.on('add', {arg spec;
+	JSON.parse(spec.asString).postln;
+});
+
+```
+Then add it (syntax: namespace, room, method, ...args):
+```
+~backend.emit("attributes", "all", "add", JSON.stringify(~spec));
+```
+
+Get a callback when a slider moves:
+```
+~attributes.on('set', {arg name, val;
+	"%: %".format(name, val).postln;
+});
+```
+
+Set a value (notice no feedback):
+```
+~attributes.emit('set', 'test.pan', 0.2);
+
+```
+
+Remove it:
+```
+~backend.emit("attributes", "all", "remove", "midinote");
+````
 
 Remove all attributes matching regex /test/:
 ```
-n.sendMsg("/forward/all/attributes/remove", "test")
-```
-
-
-Make a synth and set it on OSC callback:
-```
-s.boot;
-
-a = SynthDef(\test, {arg midinote = 40;
-	Out.ar(0, Pan2.ar(Saw.ar(midinote.midicps, 0.3)));
-}).play(s);
-
-OSCFunc({arg msg;
-	var data = JSON.parse(msg[1].asString);
-	a.set(\midinote, data[\data]);
-}, "/midinote");
+~backend.emit("attributes", "all", "removeMatching", "test");
 ```
