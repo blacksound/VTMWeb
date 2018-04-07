@@ -1,0 +1,80 @@
+.bar {
+  position: absolute;
+  top: 20%;
+  height: 40%;
+  width: 50%;
+  background: #EEE;
+  opacity: 0.3;
+}
+
+@keyframes blink {
+  0% {
+    opacity: 1.0;
+    background: white;
+  }
+  100% {
+    opacity: 0.0;
+  }
+}
+
+#animate3 {
+  left: -45%;
+  animation: bar-left 3.4s 3.0s 1 cubic-bezier(1, 0, 1, 0) normal forwards, blink 1s 6.06s 1 linear normal forwards;
+}
+
+@keyframes bar-left {
+  0% {
+    transform: translate(0%, 0);
+  }
+  90% {
+    transform: translate(90%, 0);
+  }
+  100% {
+    transform: translate(90%, 0);
+  }
+}
+
+
+#animate4 {
+  left: 95%;
+  animation: bar-right 3.4s 3.0s 1 cubic-bezier(1, 0, 1, 0) normal forwards, blink 1s 6.06s 1 linear normal forwards;
+}
+
+@keyframes bar-right {
+  0% {
+    transform: translate(0%, 0);
+  }
+  90% {
+    transform: translate(-90%, 0);
+  }
+  100% {
+    transform: translate(-90%, 0);
+  }
+}
+
+.text {
+  font-weight: bold;
+  font-size: 24px;
+}
+
+#animate2 {
+  text-align: center;
+  position: absolute;
+  top: 100%;
+  height: 40px;
+  width: 100%;
+  left: 0px;
+  color: #EEE;
+  animation-direction: normal;
+  animation-timing-function: linear;
+  animation-duration: 7.0s;
+  animation-name: move2;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+
+@keyframes move2 {
+  100% {
+      transform: translate(0, -85vh);
+  }
+}

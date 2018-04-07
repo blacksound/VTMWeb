@@ -1,0 +1,13 @@
+#myid {
+  position: absolute;
+  height: 80%;
+  overflow: hidden;
+  background: #111;
+  top: 10%;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 600px;
+}
