@@ -8,15 +8,6 @@ let parser = new ArgumentParser({
 });
 
 parser.addArgument(
-    [ '-s', '--scport' ],
-    {
-      help: 'Super Collider port',
-      type: 'int',
-      defaultValue: 57120
-    }
-);
-
-parser.addArgument(
     [ '-p', '--port' ],
     {
       help: 'Port for sending/receiving OSC-messages',
@@ -32,22 +23,6 @@ parser.addArgument(
       defaultValue: '127.0.0.1'
     }
 );
-parser.addArgument(
-    [ '-u', '--url' ],
-    {
-        help: 'Socket.io url',
-        type: 'string',
-        defaultValue: 'http://localhost:7000'
-    }
-);
-parser.addArgument(
-    ['-n', '--name'],
-    {
-        help: 'Name',
-        type: 'string',
-        defaultValue: 'anonymous'
-    }
-);
 let args = parser.parseArgs();
 
-scsocket(args['url'], args['name']).mountOSC(args['port'], args['scport'], args['ip']);
+scsocket().listen(args['port'], args['ip']);

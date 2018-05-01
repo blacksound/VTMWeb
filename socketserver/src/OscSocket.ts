@@ -2,6 +2,8 @@
 import * as udp from "dgram";
 import * as osc from 'osc-min';
 import { EventEmitter } from 'events';
+import { Subject } from 'rxjs/Subject';
+import { Observable} from 'rxjs/Rx';
 
 // for converting OSC timetag to unix time:
 const TWO_POW_32 = 4294967296;
@@ -9,18 +11,33 @@ const UNIX_EPOCH = 2208988800;
 
 export class OscSocket extends EventEmitter {
     private socket;
-    port: number;
-    ip: string;
+    private observable;
+    private id_count = 999;
+    
     constructor() {
         super();
+        this.observable = new Subject();
     }
 
-    sendMessage(namespace, ...args: any[]) {
+    packArgs(...args: any[]) {
         let newargs: any[] = [];
 
         args.forEach((arg) => {
-            let argtype = typeof arg;
-            switch (argtype) {
+
+            switch (typeof arg) {
+                case "function": {
+                    let id = this.nextID();
+                    this.once("SocketIO/reply:" + id, (...args) => {
+                        arg(...args);
+                    });
+                    newargs.push(
+                        {
+                            type: "string",
+                            value: "SOCKETIO-REPLY-ID:" + id
+                        }
+                    );
+                    break;
+                }
                 case "object": {
                     newargs.push(
                         {
@@ -33,7 +50,7 @@ export class OscSocket extends EventEmitter {
                 default: {
                     newargs.push(
                         {
-                            type: argtype,
+                            type: typeof arg,
                             value: arg
                         } 
                     );
@@ -41,13 +58,21 @@ export class OscSocket extends EventEmitter {
                 }
             }
         });
+        return newargs;
+    }
 
+    static makeOSCbuf(address, args): Buffer {
+        
         let buf = osc.toBuffer({
-            address: "/SocketIO/" + namespace,
-            args: newargs
+            address: address,
+            args: args
         });
 
-        this.socket.send(buf, 0, buf.length, this.port, this.ip);
+        return buf;
+    }
+
+    static unpackArgs(...args) {
+
     }
 
     parse(msg, rinfo) {
@@ -77,7 +102,7 @@ export class OscSocket extends EventEmitter {
         unbundle(parsed);
 
         for (let message of messages) {
-            let full_address = message["address"].replace(/^\//g, ''); //remove leading slash
+            let address = message["address"].replace(/^\//g, ''); //remove leading slash
             let args = message['args'];
             let newargs = [];
 
@@ -90,50 +115,93 @@ export class OscSocket extends EventEmitter {
             }
 
             args.forEach(element => {
+                //if argument is a string of 'OSCSOCKET-REPLY-ID:num', then make a reply callback with ID
+                if ((typeof element["value"] === 'string') && (element["value"].indexOf('SOCKETIO-REPLY-ID:') > -1)) {
+                    //match:
+                    let request_id: string = element["value"].slice(18);
+                    let callback = (...args) => {
+                        let newargs = this.packArgs(request_id, ...args);
+                        let buf = OscSocket.makeOSCbuf("/SocketIO/reply", newargs);
+                        this.socket.send(buf, 0, buf.length, rinfo['port'], rinfo['address']);
+                    };
+                    element["value"] = callback;
+                }
                 newargs.push(element["value"]);
             });
 
-            /*
-            MAKE REPLY:
-            if last argument is a string of 'OSCSOCKET-REPLY-ID:num', then make a reply callback with ID
-            */
-            let last_arg = newargs[newargs.length - 1];
-            if (typeof last_arg === 'string') {
-                //match:
-                if (last_arg.indexOf('SOCKETIO-REPLY-ID:') > -1) {
-                    let request_id: number = parseInt(last_arg.slice(19));
-                    let callback = (args: {
-                        type: string,
-                        value: any
-                    }[]) => {
-                        let buf = osc.toBuffer({
-                            address: "/SocketIO/reply",
-                            args: [
-                                {
-                                    type: "integer",
-                                    value: request_id
-                                }
-                            ].concat(args)
-                        });
-                        this.socket.send(buf, 0, buf.length, rinfo['port'], rinfo['address']);
-                    };
+            switch (address) {
 
-                    newargs[newargs.length - 1] = callback;
-                }
+                case 'SocketIO/connect':
+                    let [id, url, options, callback] = newargs;
+                    let newID = this.nextID();
+                    id = newID;
+                    let oscSendFunc = (event, ...args) => {
+                        let newargs = this.packArgs(id, event, ...args);
+                        let buf = OscSocket.makeOSCbuf("/SocketIO/emit", newargs);
+                        this.socket.send(buf, 0, buf.length, rinfo['port'], rinfo['address']);
+                    }
+                    let observable = Observable.merge(this.observable).filter((data) => {
+                        return (data['rinfo']['port'] == rinfo['port']) 
+                        && (data['rinfo']['address'] == rinfo['address'])
+                        && (id == data['id']);
+                    });
+                    let callbackWrap = () => {
+                        callback(newID);
+                    }
+                    let osc_connection = new OscConnection(oscSendFunc, observable);
+                    this.emit('connect', osc_connection, url, options, callbackWrap);
+                    break;
+
+                case 'SocketIO/emit':
+                    this.observable.next({
+                        rinfo: rinfo,
+                        id: newargs[0],
+                        event: newargs[1],
+                        args: newargs.slice(2)
+                    });
+                    break;
+                
+                case 'SocketIO/schedEmit':
+                    this.observable.next({
+                        rinfo: rinfo,
+                        id: newargs[0],
+                        event: newargs[1],
+                        args: [utc].concat(newargs.slice(2))
+                    });
+                    break;
+                
+                case "SocketIO/reply":
+                    this.emit("SocketIO/reply:" + newargs[0], ...newargs.slice(1));
+                    break;
+                default:
+                    this.emit(address, ...newargs);
             }
-            
-            this.emit(full_address, ...newargs);
         }
     }
 
-    mountOSC(recv_port: number = 8002, sc_port: number = 57120, recv_ip: string = "127.0.0.1", sc_ip: string = "127.0.0.1") {
-        this.port = sc_port;
-        this.ip = sc_ip;
-        if (this.socket === undefined) {
-            this.socket = udp.createSocket("udp4", (msg, rinfo) => {
-                this.parse(msg, rinfo);
-            });
-            this.socket.bind(recv_port, recv_ip);
-        };
+    nextID (){
+        this.id_count += 1;
+        return "id" + this.id_count.toString();
+    }
+
+    listen(port: number = 8002, ip: string = "127.0.0.1") {
+        this.socket = udp.createSocket("udp4", (msg, rinfo) => {
+            this.parse(msg, rinfo);
+        });
+        this.socket.bind(port, ip);
+    }
+}
+
+export class OscConnection extends EventEmitter {
+    
+    constructor(private callback, private observable: Observable<any>) {
+        super();
+        observable.subscribe((data) => {
+            this.emit(data['event'], ...data['args']);
+        });
+    }
+
+    send (event, ...args) {
+        this.callback(event, ...args);
     }
 }

@@ -11,11 +11,11 @@ let httpPort = 7000;
 let server = http.createServer();
 server.listen(httpPort, '127.0.0.1');
 let io = socket_io.listen(server, {
-    pingInterval: 1000
+    //pingInterval: 1000
 });
 
 //connect a local SuperCollider socket-client. This can also be another process on a different device
-scsocket('http://localhost:7000', 'foo').mountOSC(8002, 57120);
+scsocket().listen(8002);
 
 function get_name(socket): string {
     let name: string = socket.handshake.query.name || 'anonymous';

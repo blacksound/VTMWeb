@@ -8,7 +8,7 @@ cd path/to/socketserver
 npm start
 ```
 
-Start angular:
+In a different terminal, start angular:
 
 ```
 cd path/to/angular
@@ -22,8 +22,11 @@ Include the folder socketserver/sc in your list of SuperCollider class folders (
 
 Connect to different namespaces in socket-io:
 ```
-~attributes = SocketIO.connect('attributes'); //connect to namespace "attributes"
-~backend = SocketIO.connect('backend'); //connect to namespace "backend"
+~url = "http://localhost:7000";
+//connect to namespace "attributes":
+~attributes = SocketIO(~url ++ "/attributes", (query: "name=scfoo")).on('connect', {"Connected".postln});
+//connect to namespace "backend":
+~backend = SocketIO(~url ++ "/backend", (query: "name=scfoo")).on('connect', {"Connected".postln});
 ```
 Make a spec:
 ```
@@ -69,4 +72,9 @@ Remove it:
 Remove all attributes matching regex /test/:
 ```
 ~backend.emit("attributes", "all", "removeMatching", "test");
+```
+Disconnect:
+```
+~attributes.disconnect;
+~backend.disconnect;
 ```
