@@ -46,7 +46,7 @@ SocketIO {
 		];
 		^OSCFunc({|msg, time, addr, recvPort|
 			msg = msg[3..].collect({arg message;
-				if (message.isSymbol && {message.asString[..17] == "SOCKETIO-REPLY-ID:"}) {
+				if (message.isKindOf(Symbol) && {message.asString[..17] == "SOCKETIO-REPLY-ID:"}) {
 					var reply_id = message.asString[18..];
 					message = {arg ...args;
 						addr.sendMsg("/SocketIO/reply", reply_id, *args);
